@@ -4,36 +4,48 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
+  RefreshControl,
+  Pressable,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import storageService from '../services/storageService';
 import quranApi from '../api/quranApi';
 import { RecentRead, Surah } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
+import { Spacing, BorderRadius, Typography, Shadows } from '../constants/theme';
+import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
+import SearchBar from '../components/SearchBar';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { colors } = useTheme();
   const [recentReads, setRecentReads] = useState<RecentRead[]>([]);
   const [surahsList, setSurahsList] = useState<Surah[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadRecentReads();
+    }, [])
+  );
 
   const loadData = async () => {
     try {
       setLoading(true);
 
       // Load recent reads
-      const recents = await storageService.getRecentReads();
-      setRecentReads(recents);
+      await loadRecentReads();
 
       // Load or fetch surahs list for metadata
       let surahs = await storageService.getSurahsList();
@@ -47,6 +59,17 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadRecentReads = async () => {
+    const recents = await storageService.getRecentReads();
+    setRecentReads(recents);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
   };
 
   const getSurahName = (surahNumber: number): string => {
@@ -67,286 +90,304 @@ export default function HomeScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2E7D32" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
+    return <LoadingSpinner message="Loading..." />;
   }
 
+  const styles = createStyles(colors);
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Assalamu Alaikum</Text>
-        <Text style={styles.headerSubtitle}>Continue your reading journey</Text>
+        <View>
+          <Text style={styles.headerTitle}>Assalamu Alaikum</Text>
+          <Text style={styles.headerSubtitle}>Continue your reading journey</Text>
+        </View>
+        <View style={styles.iconContainer}>
+          <Ionicons name="book" size={40} color="rgba(255, 255, 255, 0.9)" />
+        </View>
       </View>
 
-      {/* Search Button */}
-      <TouchableOpacity style={styles.searchButton} onPress={handleSearchPress}>
-        <Ionicons name="search" size={20} color="#666" />
-        <Text style={styles.searchButtonText}>Search Quran...</Text>
-      </TouchableOpacity>
+      {/* Search Bar */}
+      <View style={styles.searchSection}>
+        <Pressable onPress={handleSearchPress} style={{ flex: 1 }}>
+          <View pointerEvents="none">
+            <SearchBar
+              value=""
+              onChangeText={() => {}}
+              placeholder="Search Quran..."
+              editable={false}
+            />
+          </View>
+        </Pressable>
+      </View>
 
       {/* Quick Stats */}
       <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Ionicons name="book" size={30} color="#2E7D32" />
+        <Card style={styles.statBox}>
+          <Ionicons name="book" size={28} color={colors.primary} />
           <Text style={styles.statNumber}>114</Text>
           <Text style={styles.statLabel}>Surahs</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Ionicons name="document-text" size={30} color="#2E7D32" />
+        </Card>
+        <Card style={styles.statBox}>
+          <Ionicons name="document-text" size={28} color={colors.primary} />
           <Text style={styles.statNumber}>6,236</Text>
           <Text style={styles.statLabel}>Ayahs</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Ionicons name="layers" size={30} color="#2E7D32" />
+        </Card>
+        <Card style={styles.statBox}>
+          <Ionicons name="layers" size={28} color={colors.primary} />
           <Text style={styles.statNumber}>30</Text>
           <Text style={styles.statLabel}>Juz</Text>
-        </View>
+        </Card>
       </View>
 
       {/* Recent Reads */}
       {recentReads.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Reads</Text>
+          <Text style={styles.sectionTitle}>Continue Reading</Text>
           {recentReads.slice(0, 5).map((recent, index) => (
-            <TouchableOpacity
+            <Card
               key={index}
-              style={styles.recentCard}
               onPress={() => handleRecentPress(recent)}
+              style={styles.recentCard}
             >
               <View style={styles.recentIconContainer}>
-                <Ionicons name="time-outline" size={24} color="#2E7D32" />
+                <Ionicons name="time" size={22} color={colors.primary} />
               </View>
               <View style={styles.recentInfo}>
                 <Text style={styles.recentSurah}>{getSurahName(recent.surahNumber)}</Text>
                 <Text style={styles.recentAyah}>Ayah {recent.ayahNumber}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#999" />
-            </TouchableOpacity>
+              <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+            </Card>
           ))}
         </View>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick Access */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Access</Text>
 
-        <TouchableOpacity
+        <Card
+          onPress={() =>
+            navigation.navigate('AyahReader', {
+              surahNumber: 1,
+              surahName: 'Al-Fatihah',
+              ayahNumber: 1,
+            })
+          }
           style={styles.actionCard}
-          onPress={() => navigation.navigate('AyahReader', {
-            surahNumber: 1,
-            surahName: 'Al-Fatihah',
-            ayahNumber: 1,
-          })}
         >
-          <View style={styles.actionIconContainer}>
-            <Ionicons name="star" size={24} color="#FFA000" />
+          <View style={[styles.actionIcon, { backgroundColor: colors.secondary + '20' }]}>
+            <Ionicons name="star" size={24} color={colors.secondary} />
           </View>
           <View style={styles.actionInfo}>
             <Text style={styles.actionTitle}>Surah Al-Fatihah</Text>
             <Text style={styles.actionSubtitle}>The Opening</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#999" />
-        </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+        </Card>
 
-        <TouchableOpacity
+        <Card
+          onPress={() =>
+            navigation.navigate('AyahReader', {
+              surahNumber: 36,
+              surahName: 'Ya-Sin',
+              ayahNumber: 1,
+            })
+          }
           style={styles.actionCard}
-          onPress={() => navigation.navigate('AyahReader', {
-            surahNumber: 36,
-            surahName: 'Ya-Sin',
-            ayahNumber: 1,
-          })}
         >
-          <View style={styles.actionIconContainer}>
-            <Ionicons name="heart" size={24} color="#D32F2F" />
+          <View style={[styles.actionIcon, { backgroundColor: colors.error + '20' }]}>
+            <Ionicons name="heart" size={24} color={colors.error} />
           </View>
           <View style={styles.actionInfo}>
             <Text style={styles.actionTitle}>Surah Ya-Sin</Text>
-            <Text style={styles.actionSubtitle}>The Heart of Quran</Text>
+            <Text style={styles.actionSubtitle}>Heart of the Quran</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#999" />
-        </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+        </Card>
 
-        <TouchableOpacity
+        <Card
+          onPress={() =>
+            navigation.navigate('AyahReader', {
+              surahNumber: 18,
+              surahName: 'Al-Kahf',
+              ayahNumber: 1,
+            })
+          }
           style={styles.actionCard}
-          onPress={() => navigation.navigate('AyahReader', {
-            surahNumber: 18,
-            surahName: 'Al-Kahf',
-            ayahNumber: 1,
-          })}
         >
-          <View style={styles.actionIconContainer}>
-            <Ionicons name="calendar" size={24} color="#1976D2" />
+          <View style={[styles.actionIcon, { backgroundColor: colors.info + '20' }]}>
+            <Ionicons name="calendar" size={24} color={colors.info} />
           </View>
           <View style={styles.actionInfo}>
             <Text style={styles.actionTitle}>Surah Al-Kahf</Text>
             <Text style={styles.actionSubtitle}>Friday Special</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#999" />
-        </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+        </Card>
+
+        <Card
+          onPress={() =>
+            navigation.navigate('AyahReader', {
+              surahNumber: 67,
+              surahName: 'Al-Mulk',
+              ayahNumber: 1,
+            })
+          }
+          style={styles.actionCard}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: colors.primary + '20' }]}>
+            <Ionicons name="moon" size={24} color={colors.primary} />
+          </View>
+          <View style={styles.actionInfo}>
+            <Text style={styles.actionTitle}>Surah Al-Mulk</Text>
+            <Text style={styles.actionSubtitle}>Before Sleep</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+        </Card>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  header: {
-    backgroundColor: '#2E7D32',
-    padding: 20,
-    paddingTop: 10,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 5,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#E0E0E0',
-  },
-  searchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    margin: 15,
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  searchButtonText: {
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginHorizontal: 15,
-    marginBottom: 20,
-  },
-  statBox: {
-    backgroundColor: '#FFF',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 5,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 5,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  section: {
-    marginBottom: 20,
-    paddingHorizontal: 15,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  recentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  recentIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E8F5E9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  recentInfo: {
-    flex: 1,
-  },
-  recentSurah: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  recentAyah: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  actionIconContainer: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  actionInfo: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  actionSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    contentContainer: {
+      paddingBottom: Spacing.xl,
+    },
+    header: {
+      backgroundColor: colors.primary,
+      padding: Spacing.lg,
+      paddingTop: Spacing.md,
+      paddingBottom: Spacing.xl,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    headerTitle: {
+      fontSize: Typography.sizes.xxxl,
+      fontWeight: Typography.weights.bold,
+      color: '#FFFFFF',
+      marginBottom: Spacing.xs,
+    },
+    headerSubtitle: {
+      fontSize: Typography.sizes.base,
+      color: 'rgba(255, 255, 255, 0.9)',
+    },
+    iconContainer: {
+      width: 60,
+      height: 60,
+      borderRadius: BorderRadius.round,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    searchSection: {
+      paddingHorizontal: Spacing.base,
+      marginTop: -Spacing.lg,
+      marginBottom: Spacing.lg,
+      zIndex: 10,
+    },
+    statsContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: Spacing.base,
+      marginBottom: Spacing.lg,
+      gap: Spacing.sm,
+    },
+    statBox: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: Spacing.lg,
+    },
+    statNumber: {
+      fontSize: Typography.sizes.xl,
+      fontWeight: Typography.weights.bold,
+      color: colors.text,
+      marginTop: Spacing.sm,
+    },
+    statLabel: {
+      fontSize: Typography.sizes.sm,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs,
+    },
+    section: {
+      paddingHorizontal: Spacing.base,
+      marginBottom: Spacing.lg,
+    },
+    sectionTitle: {
+      fontSize: Typography.sizes.lg,
+      fontWeight: Typography.weights.bold,
+      color: colors.text,
+      marginBottom: Spacing.md,
+    },
+    recentCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: Spacing.sm,
+    },
+    recentIconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: BorderRadius.round,
+      backgroundColor: colors.primary + '15',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: Spacing.md,
+    },
+    recentInfo: {
+      flex: 1,
+    },
+    recentSurah: {
+      fontSize: Typography.sizes.base,
+      fontWeight: Typography.weights.semibold,
+      color: colors.text,
+    },
+    recentAyah: {
+      fontSize: Typography.sizes.sm,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs,
+    },
+    actionCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: Spacing.sm,
+    },
+    actionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: BorderRadius.md,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: Spacing.md,
+    },
+    actionInfo: {
+      flex: 1,
+    },
+    actionTitle: {
+      fontSize: Typography.sizes.base,
+      fontWeight: Typography.weights.semibold,
+      color: colors.text,
+    },
+    actionSubtitle: {
+      fontSize: Typography.sizes.sm,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs,
+    },
+  });

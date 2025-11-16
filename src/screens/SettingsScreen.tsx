@@ -4,10 +4,8 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Switch,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import storageService from '../services/storageService';
@@ -19,8 +17,14 @@ import {
   AUDIO_EDITIONS,
   DEFAULT_SETTINGS,
 } from '../constants/editions';
+import { useTheme } from '../contexts/ThemeContext';
+import { Spacing, BorderRadius, Typography } from '../constants/theme';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function SettingsScreen() {
+  const { colors, theme, toggleTheme } = useTheme();
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
@@ -53,17 +57,14 @@ export default function SettingsScreen() {
 
   const handleFontSizeChange = (increase: boolean) => {
     const newSize = increase
-      ? Math.min(settings.fontSize + 2, 32)
+      ? Math.min(settings.fontSize + 2, 36)
       : Math.max(settings.fontSize - 2, 14);
 
     saveSettings({ ...settings, fontSize: newSize });
   };
 
   const handleThemeToggle = () => {
-    saveSettings({
-      ...settings,
-      theme: settings.theme === 'light' ? 'dark' : 'light',
-    });
+    toggleTheme();
   };
 
   const handleAutoDownloadToggle = () => {
@@ -154,8 +155,8 @@ export default function SettingsScreen() {
         : settings.reciterEdition;
 
     Alert.alert(
-      `Select ${type.charAt(0).toUpperCase() + type.slice(1)} Edition`,
-      '',
+      `Select ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+      'Choose your preferred edition',
       [
         ...editions.map(edition => ({
           text: edition.name,
@@ -171,7 +172,7 @@ export default function SettingsScreen() {
               saveSettings({ ...settings, reciterEdition: edition.identifier });
             }
           },
-          style: currentValue === edition.identifier ? 'default' : undefined,
+          style: (currentValue === edition.identifier ? 'default' : undefined) as any,
         })),
         { text: 'Cancel', style: 'cancel' },
       ]
@@ -179,11 +180,7 @@ export default function SettingsScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2E7D32" />
-      </View>
-    );
+    return <LoadingSpinner message="Loading settings..." />;
   }
 
   const getEditionName = (identifier: string) => {
@@ -192,269 +189,266 @@ export default function SettingsScreen() {
     return edition?.name || identifier;
   };
 
+  const styles = createStyles(colors);
+
   return (
     <ScrollView style={styles.container}>
       {/* Reading Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Reading Settings</Text>
 
-        <View style={styles.settingCard}>
+        <Card style={styles.settingCard} onPress={() => showEditionPicker('arabic')}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Arabic Edition</Text>
             <Text style={styles.settingValue}>
               {getEditionName(settings.arabicEdition)}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => showEditionPicker('arabic')}>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
-          </TouchableOpacity>
-        </View>
+          <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+        </Card>
 
-        <View style={styles.settingCard}>
+        <Card style={styles.settingCard} onPress={() => showEditionPicker('translation')}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Translation</Text>
             <Text style={styles.settingValue}>
               {getEditionName(settings.translationEditions[0])}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => showEditionPicker('translation')}>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
-          </TouchableOpacity>
-        </View>
+          <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+        </Card>
 
-        <View style={styles.settingCard}>
+        <Card style={styles.settingCard}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Font Size</Text>
+            <Text style={styles.settingLabel}>Arabic Font Size</Text>
             <Text style={styles.settingValue}>{settings.fontSize}px</Text>
           </View>
           <View style={styles.fontSizeButtons}>
-            <TouchableOpacity
+            <Card
               style={styles.fontButton}
               onPress={() => handleFontSizeChange(false)}
+              elevated={false}
             >
-              <Ionicons name="remove" size={20} color="#2E7D32" />
-            </TouchableOpacity>
-            <TouchableOpacity
+              <Ionicons name="remove" size={18} color={colors.primary} />
+            </Card>
+            <Card
               style={styles.fontButton}
               onPress={() => handleFontSizeChange(true)}
+              elevated={false}
             >
-              <Ionicons name="add" size={20} color="#2E7D32" />
-            </TouchableOpacity>
+              <Ionicons name="add" size={18} color={colors.primary} />
+            </Card>
           </View>
-        </View>
+        </Card>
       </View>
 
       {/* Audio Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Audio Settings</Text>
 
-        <View style={styles.settingCard}>
+        <Card style={styles.settingCard} onPress={() => showEditionPicker('reciter')}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Reciter</Text>
             <Text style={styles.settingValue}>
               {getEditionName(settings.reciterEdition)}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => showEditionPicker('reciter')}>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
-          </TouchableOpacity>
-        </View>
+          <Ionicons name="chevron-forward" size={22} color={colors.textTertiary} />
+        </Card>
       </View>
 
       {/* Appearance */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Appearance</Text>
 
-        <View style={styles.settingCard}>
+        <Card style={styles.settingCard}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Dark Mode</Text>
-            <Text style={styles.settingDescription}>
-              {settings.theme === 'dark' ? 'Enabled' : 'Disabled'}
-            </Text>
+            <View style={styles.settingRow}>
+              <Ionicons
+                name={theme === 'dark' ? 'moon' : 'sunny'}
+                size={22}
+                color={colors.primary}
+                style={styles.settingIcon}
+              />
+              <View>
+                <Text style={styles.settingLabel}>Dark Mode</Text>
+                <Text style={styles.settingDescription}>
+                  {theme === 'dark' ? 'Enabled' : 'Disabled'}
+                </Text>
+              </View>
+            </View>
           </View>
           <Switch
-            value={settings.theme === 'dark'}
+            value={theme === 'dark'}
             onValueChange={handleThemeToggle}
-            trackColor={{ false: '#CCC', true: '#81C784' }}
-            thumbColor={settings.theme === 'dark' ? '#2E7D32' : '#F5F5F5'}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={theme === 'dark' ? colors.primary : colors.surface}
           />
-        </View>
+        </Card>
       </View>
 
       {/* Offline Data */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Offline Data</Text>
 
-        <View style={styles.settingCard}>
+        <Card style={styles.settingCard}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Auto Download</Text>
-            <Text style={styles.settingDescription}>
-              Download surahs when viewing
-            </Text>
+            <View style={styles.settingRow}>
+              <Ionicons
+                name="cloud-download"
+                size={22}
+                color={colors.download}
+                style={styles.settingIcon}
+              />
+              <View>
+                <Text style={styles.settingLabel}>Auto Download</Text>
+                <Text style={styles.settingDescription}>
+                  Download surahs when viewing
+                </Text>
+              </View>
+            </View>
           </View>
           <Switch
             value={settings.autoDownload}
             onValueChange={handleAutoDownloadToggle}
-            trackColor={{ false: '#CCC', true: '#81C784' }}
-            thumbColor={settings.autoDownload ? '#2E7D32' : '#F5F5F5'}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={settings.autoDownload ? colors.primary : colors.surface}
           />
-        </View>
+        </Card>
 
-        <TouchableOpacity
-          style={styles.actionButton}
+        <Button
           onPress={handleDownloadAllSurahs}
-          disabled={downloading}
+          loading={downloading}
+          icon={<Ionicons name="cloud-download" size={20} color="#FFF" />}
+          style={styles.actionButton}
         >
-          {downloading ? (
-            <ActivityIndicator color="#2E7D32" />
-          ) : (
-            <>
-              <Ionicons name="cloud-download" size={24} color="#2E7D32" />
-              <Text style={styles.actionButtonText}>Download All Surahs</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          Download All Surahs
+        </Button>
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.dangerButton]}
+        <Button
           onPress={handleClearOfflineData}
+          variant="danger"
+          icon={<Ionicons name="trash-outline" size={20} color="#FFF" />}
+          style={styles.actionButton}
         >
-          <Ionicons name="trash-outline" size={24} color="#D32F2F" />
-          <Text style={[styles.actionButtonText, styles.dangerButtonText]}>
-            Clear Offline Data
-          </Text>
-        </TouchableOpacity>
+          Clear Offline Data
+        </Button>
       </View>
 
       {/* About */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoText}>
-            This app uses the Al Quran Cloud API
-          </Text>
-          <Text style={styles.infoSubtext}>https://alquran.cloud/api</Text>
-        </View>
+        <Card style={styles.infoCard}>
+          <Ionicons
+            name="cloud"
+            size={20}
+            color={colors.info}
+            style={styles.infoIcon}
+          />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoText}>Al Quran Cloud API</Text>
+            <Text style={styles.infoSubtext}>https://alquran.cloud/api</Text>
+          </View>
+        </Card>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoText}>Version 1.0.0</Text>
-          <Text style={styles.infoSubtext}>Built with React Native & Expo</Text>
-        </View>
+        <Card style={styles.infoCard}>
+          <Ionicons
+            name="code-slash"
+            size={20}
+            color={colors.success}
+            style={styles.infoIcon}
+          />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoText}>Version 1.0.0</Text>
+            <Text style={styles.infoSubtext}>Built with React Native & Expo</Text>
+          </View>
+        </Card>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  section: {
-    marginTop: 20,
-    paddingHorizontal: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  settingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  settingInfo: {
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  settingValue: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 3,
-  },
-  settingDescription: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 3,
-  },
-  fontSizeButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  fontButton: {
-    width: 35,
-    height: 35,
-    borderRadius: 17.5,
-    backgroundColor: '#E8F5E9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2E7D32',
-    marginLeft: 10,
-  },
-  dangerButton: {
-    borderWidth: 1,
-    borderColor: '#FFCDD2',
-  },
-  dangerButtonText: {
-    color: '#D32F2F',
-  },
-  infoCard: {
-    backgroundColor: '#FFF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  infoText: {
-    fontSize: 15,
-    color: '#333',
-  },
-  infoSubtext: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 3,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    section: {
+      marginTop: Spacing.lg,
+      paddingHorizontal: Spacing.base,
+    },
+    sectionTitle: {
+      fontSize: Typography.sizes.lg,
+      fontWeight: Typography.weights.bold,
+      color: colors.text,
+      marginBottom: Spacing.md,
+    },
+    settingCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: Spacing.sm,
+    },
+    settingInfo: {
+      flex: 1,
+    },
+    settingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    settingIcon: {
+      marginRight: Spacing.md,
+    },
+    settingLabel: {
+      fontSize: Typography.sizes.base,
+      fontWeight: Typography.weights.semibold,
+      color: colors.text,
+    },
+    settingValue: {
+      fontSize: Typography.sizes.sm,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs,
+    },
+    settingDescription: {
+      fontSize: Typography.sizes.sm,
+      color: colors.textTertiary,
+      marginTop: Spacing.xs,
+    },
+    fontSizeButtons: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+    },
+    fontButton: {
+      width: 36,
+      height: 36,
+      borderRadius: BorderRadius.md,
+      backgroundColor: colors.primary + '15',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    actionButton: {
+      marginTop: Spacing.sm,
+    },
+    infoCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: Spacing.sm,
+    },
+    infoIcon: {
+      marginRight: Spacing.md,
+    },
+    infoContent: {
+      flex: 1,
+    },
+    infoText: {
+      fontSize: Typography.sizes.base,
+      fontWeight: Typography.weights.medium,
+      color: colors.text,
+    },
+    infoSubtext: {
+      fontSize: Typography.sizes.sm,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs,
+    },
+  });
